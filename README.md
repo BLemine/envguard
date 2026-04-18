@@ -2,7 +2,7 @@
 
 **Keep your `.env` files honest.**
 
-A lightweight CLI tool that catches missing, undocumented, and empty environment variables before they cause problems in production.
+A lightweight CLI tool that checks missing, undocumented, and empty environment variables, syncs local files from examples, audits git history for leaked secrets, and encrypts/decrypts env files for safer team sharing.
 
 ---
 
@@ -14,7 +14,7 @@ Every project has a `.env.example` committed to git and a real `.env` that's git
 - Someone adds a new key to `.env` but forgets to update `.env.example`
 - A key exists but is empty — and nobody notices until production
 
-`envguard` catches all of this.
+`envguard` catches all of this, and helps you recover when it doesn't.
 
 ---
 
@@ -41,8 +41,8 @@ Comparing .env.example → .env
 
   ✓ DATABASE_URL                            ok
   ✓ JWT_SECRET                              ok
-  ✗ STRIPE_SECRET_KEY                       missing from your .env
-  ✗ REDIS_URL                               missing from your .env
+  ✗ STRIPE_SECRET_KEY                       missing from .env
+  ✗ REDIS_URL                               missing from .env
   ⚠ DEBUG_MODE                              in .env but not in .env.example
 
 Summary
@@ -50,7 +50,7 @@ Summary
   ✗ 2 missing
   ⚠ 1 undocumented
 
-✗ Check failed — run `envguard sync` to fill missing keys
+✗ Check failed — fix missing or empty keys before continuing
 ```
 
 Custom paths:
@@ -63,6 +63,7 @@ envguard check --example=.env.staging.example --local=.env.staging
 ### `sync` — add missing keys to your `.env`
 
 Adds missing keys from `.env.example` into your `.env` with empty values. **Existing keys are never overwritten.**
+If the target file does not exist yet, `envguard` creates it for you.
 
 ```bash
 envguard sync
@@ -84,6 +85,8 @@ Encrypts your `.env` into a `.env.enc` file using **AES-256-GCM** with a key der
 ```bash
 envguard encrypt --passphrase=mysecret
 ```
+
+Avoid passing secrets directly on the command line if you can, since shell history and process inspection may expose them. Prefer CI secret injection or a shell prompt that exports `ENVGUARD_PASSPHRASE` only for the current session.
 
 ```
 ✓ .env encrypted → .env.enc (share this with your team)
@@ -144,6 +147,42 @@ Use in GitHub Actions:
 - name: Validate env
   run: envguard validate --required=DATABASE_URL,API_KEY,JWT_SECRET
 ```
+
+---
+
+### `audit` — scan git history for leaked env files and secrets
+
+Walks the full git history and flags committed `.env` files plus lines matching common secret patterns such as API keys, tokens, passwords, private keys, Slack tokens, GitHub tokens, and Stripe keys.
+
+```bash
+envguard audit
+```
+
+Custom repository path:
+```bash
+envguard audit --repo /path/to/other/repo
+```
+
+Example output:
+```text
+Audit: scanning git history for secrets and .env files
+
+.env Files Committed to History
+  ⚠ e92d843  .env
+
+Secret Patterns Detected
+  ✗ e92d843  .env                                Generic API Key
+         API_KEY=[REDACTED]
+
+Summary
+  ⚠ 1 .env file(s) found in history
+  ✗ 1 secret pattern(s) detected
+
+✗ Audit failed — sensitive data may be exposed in git history
+  Tip: use `git filter-repo` or BFG Repo Cleaner to scrub history
+```
+
+`audit` exits with code `1` when it finds leaked env files or matching secret patterns, which makes it suitable for CI or pre-release checks without dumping the secret value into logs.
 
 ---
 

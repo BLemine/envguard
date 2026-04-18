@@ -51,22 +51,14 @@ func Run(repoPath string) (*Result, error) {
 }
 
 func findEnvFiles(repoPath string, result *Result) error {
-	cmd := exec.Command("git", "-C", repoPath, "log", "--all", "--diff-filter=A", "--name-only", "--format=COMMIT:%H")
-	out, err := cmd.Output()
-	if err != nil {
-		return fmt.Errorf("git log failed: %w", err)
-	}
-
 	var currentSHA string
-	scanner := bufio.NewScanner(bytes.NewReader(out))
-	for scanner.Scan() {
-		line := scanner.Text()
+	return streamGitLines(repoPath, []string{"log", "--all", "--diff-filter=A", "--name-only", "--format=COMMIT:%H"}, func(line string) {
 		if strings.HasPrefix(line, "COMMIT:") {
 			currentSHA = strings.TrimPrefix(line, "COMMIT:")
-			continue
+			return
 		}
 		if line == "" || currentSHA == "" {
-			continue
+			return
 		}
 		if matchesEnvFile(line) {
 			result.EnvFiles = append(result.EnvFiles, EnvFileHit{
@@ -74,8 +66,7 @@ func findEnvFiles(repoPath string, result *Result) error {
 				File:      line,
 			})
 		}
-	}
-	return scanner.Err()
+	})
 }
 
 // matchesEnvFile returns true for .env files that likely contain real secrets
@@ -98,32 +89,21 @@ func matchesEnvFile(path string) bool {
 }
 
 func scanSecrets(repoPath string, result *Result) error {
-	cmd := exec.Command("git", "-C", repoPath, "log", "--all", "--no-merges", "-p", "--no-color", "--format=COMMIT:%H")
-	out, err := cmd.Output()
-	if err != nil {
-		return fmt.Errorf("git log -p failed: %w", err)
-	}
-
 	var currentSHA, currentFile string
 	seen := make(map[string]bool)
 
-	scanner := bufio.NewScanner(bytes.NewReader(out))
-	scanner.Buffer(make([]byte, 10*1024*1024), 10*1024*1024)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-
+	return streamGitLines(repoPath, []string{"log", "--all", "--no-merges", "-p", "--no-color", "--format=COMMIT:%H"}, func(line string) {
 		if strings.HasPrefix(line, "COMMIT:") {
 			currentSHA = strings.TrimPrefix(line, "COMMIT:")
 			currentFile = ""
-			continue
+			return
 		}
 		if strings.HasPrefix(line, "+++ b/") {
 			currentFile = strings.TrimPrefix(line, "+++ b/")
-			continue
+			return
 		}
 		if len(line) == 0 || line[0] != '+' || strings.HasPrefix(line, "+++") {
-			continue
+			return
 		}
 
 		content := line[1:]
@@ -136,14 +116,60 @@ func scanSecrets(repoPath string, result *Result) error {
 						CommitSHA: currentSHA,
 						File:      currentFile,
 						Pattern:   p.name,
-						Line:      truncate(strings.TrimSpace(content), 80),
+						Line:      truncate(redactSecretLine(strings.TrimSpace(content)), 80),
 					})
 				}
 				break
 			}
 		}
+	})
+}
+
+func streamGitLines(repoPath string, args []string, consume func(string)) error {
+	cmdArgs := append([]string{"-C", repoPath}, args...)
+	cmd := exec.Command("git", cmdArgs...)
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("starting git command: %w", err)
 	}
-	return scanner.Err()
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("starting git command: %w", err)
+	}
+
+	scanner := bufio.NewScanner(stdout)
+	scanner.Buffer(make([]byte, 10*1024*1024), 10*1024*1024)
+
+	for scanner.Scan() {
+		consume(scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		_ = cmd.Wait()
+		return fmt.Errorf("reading git output: %w", err)
+	}
+	if err := cmd.Wait(); err != nil {
+		if stderr.Len() > 0 {
+			return fmt.Errorf("git %s failed: %s", strings.Join(args, " "), strings.TrimSpace(stderr.String()))
+		}
+		return fmt.Errorf("git %s failed: %w", strings.Join(args, " "), err)
+	}
+	return nil
+}
+
+var assignmentSecretRE = regexp.MustCompile(`^(\s*[\w.-]+\s*[=:]\s*)(?:"[^"]*"|'[^']*'|[^\s#]+)(\s*(?:#.*)?)$`)
+
+func redactSecretLine(line string) string {
+	if matches := assignmentSecretRE.FindStringSubmatch(line); len(matches) == 3 {
+		return matches[1] + "[REDACTED]" + matches[2]
+	}
+	if strings.Contains(line, "-----BEGIN ") && strings.Contains(line, "PRIVATE KEY-----") {
+		return "[REDACTED PRIVATE KEY HEADER]"
+	}
+	return "[REDACTED]"
 }
 
 func truncate(s string, n int) string {

@@ -20,25 +20,36 @@ var checkCmd = &cobra.Command{
 	Short: "Compare your .env against .env.example",
 	Long:  `Diffs your local .env file against .env.example and reports missing, undocumented, or empty keys.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		example, err := parser.Parse(checkExample)
+		result, err := runCheck(checkExample, checkLocal)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading %s: %v\n", checkExample, err)
+			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
 
-		local, err := parser.Parse(checkLocal)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading %s: %v\n", checkLocal, err)
-			os.Exit(1)
-		}
-
-		result := differ.Diff(example, local)
 		reporter.PrintDiff(result, checkExample, checkLocal)
 
-		if result.Missing > 0 {
+		if shouldFailCheck(result) {
 			os.Exit(1)
 		}
 	},
+}
+
+func runCheck(examplePath, localPath string) (*differ.DiffResult, error) {
+	example, err := parser.Parse(examplePath)
+	if err != nil {
+		return nil, fmt.Errorf("error reading %s: %w", examplePath, err)
+	}
+
+	local, err := parser.Parse(localPath)
+	if err != nil {
+		return nil, fmt.Errorf("error reading %s: %w", localPath, err)
+	}
+
+	return differ.Diff(example, local), nil
+}
+
+func shouldFailCheck(result *differ.DiffResult) bool {
+	return result.Missing > 0 || result.Empty > 0
 }
 
 func init() {

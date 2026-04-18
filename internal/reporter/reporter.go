@@ -2,6 +2,7 @@ package reporter
 
 import (
 	"fmt"
+	"path/filepath"
 	"sort"
 
 	"github.com/BLemine/envguard/internal/auditor"
@@ -30,9 +31,9 @@ func PrintDiff(result *differ.DiffResult, examplePath, localPath string) {
 		case differ.StatusOK:
 			green.Printf("  ✓ %-40s ok\n", entry.Key)
 		case differ.StatusMissing:
-			red.Printf("  ✗ %-40s missing from your .env\n", entry.Key)
+			red.Printf("  ✗ %-40s missing from %s\n", entry.Key, filepath.Base(localPath))
 		case differ.StatusUndocumented:
-			yellow.Printf("  ⚠ %-40s in .env but not in .env.example\n", entry.Key)
+			yellow.Printf("  ⚠ %-40s in %s but not in %s\n", entry.Key, filepath.Base(localPath), filepath.Base(examplePath))
 		case differ.StatusEmpty:
 			yellow.Printf("  ⚠ %-40s present but empty\n", entry.Key)
 		}
@@ -57,10 +58,10 @@ func printSummary(result *differ.DiffResult) {
 	}
 	fmt.Println()
 
-	if result.Missing > 0 {
-		red.Println("✗ Check failed — run `envguard sync` to fill missing keys")
+	if result.Missing > 0 || result.Empty > 0 {
+		red.Println("✗ Check failed — fix missing or empty keys before continuing")
 	} else {
-		green.Println("✓ All required keys are present")
+		green.Println("✓ All example keys are present and non-empty")
 	}
 	fmt.Println()
 }
