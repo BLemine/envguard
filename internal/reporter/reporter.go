@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"github.com/fatih/color"
+	"github.com/yourusername/envguard/internal/auditor"
 	"github.com/yourusername/envguard/internal/differ"
 )
 
@@ -81,4 +82,51 @@ func PrintSyncResult(added []string, skipped []string) {
 		faint.Printf("  ~ %-40s already exists, skipped\n", k)
 	}
 	fmt.Println()
+}
+
+func PrintAuditResult(result *auditor.Result) {
+	bold.Printf("\nAudit: scanning git history for secrets and .env files\n\n")
+
+	if len(result.EnvFiles) > 0 {
+		bold.Println(".env Files Committed to History")
+		for _, hit := range result.EnvFiles {
+			yellow.Printf("  ⚠ %s  %s\n", sha7(hit.CommitSHA), hit.File)
+		}
+		fmt.Println()
+	}
+
+	if len(result.Secrets) > 0 {
+		bold.Println("Secret Patterns Detected")
+		for _, hit := range result.Secrets {
+			red.Printf("  ✗ %s  %-35s %s\n", sha7(hit.CommitSHA), hit.File, hit.Pattern)
+			faint.Printf("         %s\n", hit.Line)
+		}
+		fmt.Println()
+	}
+
+	bold.Println("Summary")
+	if len(result.EnvFiles) == 0 && len(result.Secrets) == 0 {
+		green.Println("  ✓ No .env files or secret patterns found in git history")
+		fmt.Println()
+		green.Println("✓ Audit passed")
+		fmt.Println()
+		return
+	}
+	if len(result.EnvFiles) > 0 {
+		yellow.Printf("  ⚠ %d .env file(s) found in history\n", len(result.EnvFiles))
+	}
+	if len(result.Secrets) > 0 {
+		red.Printf("  ✗ %d secret pattern(s) detected\n", len(result.Secrets))
+	}
+	fmt.Println()
+	red.Println("✗ Audit failed — sensitive data may be exposed in git history")
+	faint.Println("  Tip: use `git filter-repo` or BFG Repo Cleaner to scrub history")
+	fmt.Println()
+}
+
+func sha7(sha string) string {
+	if len(sha) > 7 {
+		return sha[:7]
+	}
+	return sha
 }
