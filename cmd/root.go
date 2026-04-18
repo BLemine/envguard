@@ -25,4 +25,6 @@ func init() {
 	rootCmd.AddCommand(syncCmd)
 	rootCmd.AddCommand(validateCmd)
 	rootCmd.AddCommand(auditCmd)
+	rootCmd.AddCommand(encryptCmd)
+	rootCmd.AddCommand(decryptCmd)
 }
