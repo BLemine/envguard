@@ -52,7 +52,7 @@ var validateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		fmt.Println("✓ All required keys are set\n")
+		fmt.Println("✓ All required keys are set")
 	},
 }
 
