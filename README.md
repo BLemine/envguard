@@ -77,6 +77,52 @@ Sync result
 
 ---
 
+### `encrypt` — encrypt a `.env` file for safe sharing
+
+Encrypts your `.env` into a `.env.enc` file using **AES-256-GCM** with a key derived from your passphrase via **Argon2id**. The passphrase is never stored anywhere.
+
+```bash
+envguard encrypt --passphrase=mysecret
+```
+
+```
+✓ .env encrypted → .env.enc (share this with your team)
+```
+
+Custom paths:
+```bash
+envguard encrypt --local=.env.staging --out=.env.staging.enc --passphrase=mysecret
+```
+
+Via environment variable (useful in CI):
+```bash
+ENVGUARD_PASSPHRASE=mysecret envguard encrypt
+```
+
+---
+
+### `decrypt` — decrypt a `.env.enc` file
+
+Decrypts a `.env.enc` back into `.env`. Fails loudly if the passphrase is wrong. Will **not** overwrite an existing `.env` unless `--force` is passed.
+
+```bash
+envguard decrypt --passphrase=mysecret
+```
+
+```
+✓ .env.enc decrypted → .env
+```
+
+Custom paths or force overwrite:
+```bash
+envguard decrypt --local=.env.staging.enc --out=.env.staging --passphrase=mysecret
+envguard decrypt --passphrase=mysecret --force
+```
+
+> **Note:** `.env.enc` is gitignored by default. Commit it intentionally only after confirming your team knows the passphrase out-of-band.
+
+---
+
 ### `validate` — assert required keys are non-empty
 
 Perfect for CI pipelines. Exits with code 1 if any required key is missing or empty.
@@ -109,11 +155,17 @@ envguard/
 │   ├── root.go       # Cobra root command
 │   ├── check.go      # envguard check
 │   ├── sync.go       # envguard sync
-│   └── validate.go   # envguard validate
+│   ├── validate.go   # envguard validate
+│   ├── audit.go      # envguard audit
+│   ├── encrypt.go    # envguard encrypt
+│   ├── decrypt.go    # envguard decrypt
+│   └── passphrase.go # shared passphrase resolution
 ├── internal/
 │   ├── parser/       # .env file parsing
 │   ├── differ/       # diff logic
-│   └── reporter/     # colored terminal output
+│   ├── reporter/     # colored terminal output
+│   ├── auditor/      # git history scanning
+│   └── crypto/       # AES-256-GCM + Argon2id
 └── main.go
 ```
 
@@ -121,8 +173,8 @@ envguard/
 
 ## Roadmap
 
-- [ ] `audit` — scan git history for accidentally committed secrets
-- [ ] `encrypt` / `decrypt` — encrypted `.env` for safe team sharing
+- [x] `audit` — scan git history for accidentally committed secrets
+- [x] `encrypt` / `decrypt` — encrypted `.env` for safe team sharing
 - [ ] Multi-file support (`.env.staging`, `.env.test`, `.env.production`)
 - [ ] GitHub Actions marketplace action
 
