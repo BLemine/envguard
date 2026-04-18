@@ -20,6 +20,16 @@ Every project has a `.env.example` committed to git and a real `.env` that's git
 
 ## Install
 
+With Homebrew:
+
+```bash
+brew tap BLemine/tap
+brew install BLemine/tap/envguard
+envguard --help
+```
+
+With Go:
+
 ```bash
 go install github.com/BLemine/envguard@latest
 ```
