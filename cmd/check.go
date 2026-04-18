@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/BLemine/envguard/internal/differ"
+	"github.com/BLemine/envguard/internal/parser"
+	"github.com/BLemine/envguard/internal/reporter"
 	"github.com/spf13/cobra"
-	"github.com/yourusername/envguard/internal/differ"
-	"github.com/yourusername/envguard/internal/parser"
-	"github.com/yourusername/envguard/internal/reporter"
 )
 
 var (

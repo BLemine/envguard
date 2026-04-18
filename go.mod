@@ -1,4 +1,4 @@
-module github.com/yourusername/envguard
+module github.com/BLemine/envguard
 
 go 1.25.0
 

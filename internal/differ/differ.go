@@ -1,6 +1,6 @@
 package differ
 
-import "github.com/yourusername/envguard/internal/parser"
+import "github.com/BLemine/envguard/internal/parser"
 
 type Status int
 
@@ -17,11 +17,11 @@ type DiffEntry struct {
 }
 
 type DiffResult struct {
-	Entries []DiffEntry
-	OK      int
-	Missing int
+	Entries      []DiffEntry
+	OK           int
+	Missing      int
 	Undocumented int
-	Empty   int
+	Empty        int
 }
 
 func Diff(example, local *parser.EnvFile) *DiffResult {

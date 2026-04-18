@@ -1,6 +1,6 @@
 package main
 
-import "github.com/yourusername/envguard/cmd"
+import "github.com/BLemine/envguard/cmd"
 
 func main() {
 	cmd.Execute()

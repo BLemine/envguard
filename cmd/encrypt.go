@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
+	envcrypto "github.com/BLemine/envguard/internal/crypto"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	envcrypto "github.com/yourusername/envguard/internal/crypto"
 )
 
 var (
