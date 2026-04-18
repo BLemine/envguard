@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test ./...
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build binaries
+        run: |
+          GOOS=darwin GOARCH=arm64 go build -o dist/envguard-darwin-arm64 .
+          GOOS=darwin GOARCH=amd64 go build -o dist/envguard-darwin-amd64 .
+          GOOS=linux GOARCH=amd64 go build -o dist/envguard-linux-amd64 .
+          GOOS=windows GOARCH=amd64 go build -o dist/envguard-windows-amd64.exe .
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/*
