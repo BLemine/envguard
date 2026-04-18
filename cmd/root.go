@@ -24,4 +24,5 @@ func init() {
 	rootCmd.AddCommand(checkCmd)
 	rootCmd.AddCommand(syncCmd)
 	rootCmd.AddCommand(validateCmd)
+	rootCmd.AddCommand(auditCmd)
 }
