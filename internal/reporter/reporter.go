@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/BLemine/envguard/internal/auditor"
+	"github.com/BLemine/envguard/internal/differ"
 	"github.com/fatih/color"
-	"github.com/yourusername/envguard/internal/auditor"
-	"github.com/yourusername/envguard/internal/differ"
 )
 
 var (

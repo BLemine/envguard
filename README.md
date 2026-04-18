@@ -21,10 +21,10 @@ Every project has a `.env.example` committed to git and a real `.env` that's git
 ## Install
 
 ```bash
-go install github.com/yourusername/envguard@latest
+go install github.com/BLemine/envguard@latest
 ```
 
-Or download a pre-built binary from [Releases](https://github.com/yourusername/envguard/releases).
+Or download a pre-built binary from [Releases](https://github.com/BLemine/envguard/releases).
 
 ---
 

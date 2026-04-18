@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/BLemine/envguard/internal/auditor"
+	"github.com/BLemine/envguard/internal/reporter"
 	"github.com/spf13/cobra"
-	"github.com/yourusername/envguard/internal/auditor"
-	"github.com/yourusername/envguard/internal/reporter"
 )
 
 var auditRepo string
