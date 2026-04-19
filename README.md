@@ -196,25 +196,106 @@ Summary
 
 ---
 
+### `scan-config` — scan Spring Boot / Quarkus config files for env variable placeholders
+
+Extracts `${VAR}` and `${VAR:default}` placeholders from YAML and `.properties` config files.
+Required variables (no default) and optional variables (with default) are reported separately.
+
+```bash
+envguard scan-config --files=application.yml
+```
+
+```
+Scanned: application.yml
+
+Required variables:
+  - DATABASE_URL                (spring.datasource.url)
+  - DATABASE_PASSWORD           (spring.datasource.password)
+
+Optional variables with defaults:
+  - SERVER_PORT=8080    (server.port)
+```
+
+Use `--strict` with `--local` / `--example` to verify all required variables are defined:
+
+```bash
+envguard scan-config --files=application.yml --local=.env --example=.env.example --strict
+```
+
+```
+Required variables found in config: 2
+Optional variables found in config: 1
+
+Required variables:
+  - DATABASE_URL                (spring.datasource.url)
+  - DATABASE_PASSWORD           (spring.datasource.password)
+
+Optional variables with defaults:
+  - SERVER_PORT=8080    (server.port)
+
+Missing in .env:
+  - DATABASE_PASSWORD
+
+Missing in .env.example:
+  - DATABASE_URL
+```
+
+Exits with code `1` when `--strict` is set and any required variable is absent from the provided env files.
+
+**Spring Boot `application.yml`**
+
+```yaml
+spring:
+  datasource:
+    url: ${DATABASE_URL}
+    password: ${DATABASE_PASSWORD}
+server:
+  port: ${SERVER_PORT:8080}
+```
+
+**Quarkus `application.properties`**
+
+```properties
+quarkus.datasource.jdbc.url=${DATABASE_URL}
+quarkus.datasource.password=${DATABASE_PASSWORD}
+quarkus.http.port=${SERVER_PORT:8080}
+```
+
+Flags:
+
+| Flag | Description |
+|------|-------------|
+| `--files` | Comma-separated list of config files to scan (required) |
+| `--format` | Force format: `auto` \| `yaml` \| `props` (default: `auto`, detected from extension) |
+| `--local` | Path to local `.env` file for comparison |
+| `--example` | Path to `.env.example` file for comparison |
+| `--strict` | Exit non-zero if any required variable is missing from `--local` / `--example` |
+| `--json` | Output results as JSON (for CI integrations) |
+| `--quiet` | Output only variable names, one per line |
+
+---
+
 ## Project structure
 
 ```
 envguard/
 ├── cmd/
-│   ├── root.go       # Cobra root command
-│   ├── check.go      # envguard check
-│   ├── sync.go       # envguard sync
-│   ├── validate.go   # envguard validate
-│   ├── audit.go      # envguard audit
-│   ├── encrypt.go    # envguard encrypt
-│   ├── decrypt.go    # envguard decrypt
-│   └── passphrase.go # shared passphrase resolution
+│   ├── root.go          # Cobra root command
+│   ├── check.go         # envguard check
+│   ├── sync.go          # envguard sync
+│   ├── validate.go      # envguard validate
+│   ├── audit.go         # envguard audit
+│   ├── encrypt.go       # envguard encrypt
+│   ├── decrypt.go       # envguard decrypt
+│   ├── scan_config.go   # envguard scan-config
+│   └── passphrase.go    # shared passphrase resolution
 ├── internal/
-│   ├── parser/       # .env file parsing
-│   ├── differ/       # diff logic
-│   ├── reporter/     # colored terminal output
-│   ├── auditor/      # git history scanning
-│   └── crypto/       # AES-256-GCM + Argon2id
+│   ├── parser/          # .env file parsing
+│   ├── differ/          # diff logic
+│   ├── reporter/        # colored terminal output
+│   ├── auditor/         # git history scanning
+│   ├── configscan/      # YAML / .properties placeholder extraction
+│   └── crypto/          # AES-256-GCM + Argon2id
 └── main.go
 ```
 
@@ -224,6 +305,7 @@ envguard/
 
 - [x] `audit` — scan git history for accidentally committed secrets
 - [x] `encrypt` / `decrypt` — encrypted `.env` for safe team sharing
+- [x] `scan-config` — extract env placeholders from Spring Boot / Quarkus config files
 - [ ] Multi-file support (`.env.staging`, `.env.test`, `.env.production`)
 - [ ] GitHub Actions marketplace action
 
