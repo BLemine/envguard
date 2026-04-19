@@ -2,7 +2,7 @@
 
 **Keep your `.env` files honest.**
 
-A lightweight CLI tool that checks missing, undocumented, and empty environment variables, syncs local files from examples, audits git history for leaked secrets, and encrypts/decrypts env files for safer team sharing.
+A lightweight CLI tool that checks missing, undocumented, and empty configuration values across `.env`, YAML, and `.properties` files, syncs local files from examples, audits git history for leaked secrets, and encrypts/decrypts env files for safer team sharing.
 
 ---
 
@@ -193,6 +193,51 @@ Summary
 ```
 
 `audit` exits with code `1` when it finds leaked env files or matching secret patterns, which makes it suitable for CI or pre-release checks without dumping the secret value into logs.
+
+---
+
+## JVM / Spring Boot support
+
+`envguard` can also work with YAML and Java `.properties` configuration files by passing `--format` explicitly or by relying on extension-based auto-detection.
+
+### Spring Boot with `application.yml`
+
+```bash
+envguard check --example=application.yml.example --local=application.yml
+envguard sync --example=application.yml.example --local=application.yml
+envguard validate --format=yaml --local=application.yml --required=spring.datasource.url,spring.datasource.password
+```
+
+Supported YAML files are flattened into dot notation internally. For example, `spring.datasource.url` and `server.port` are treated the same way env keys are.
+
+### Spring Boot with `application.properties`
+
+```bash
+envguard check --example=application.properties.example --local=application.properties
+envguard sync --example=application.properties.example --local=application.properties
+envguard validate --format=props --local=application.properties --required=spring.datasource.url,spring.datasource.password
+```
+
+### Quarkus with `application.properties`
+
+```bash
+envguard check --example=application.properties.example --local=application.properties
+envguard validate --format=props --local=application.properties --required=quarkus.datasource.jdbc.url,quarkus.datasource.username,quarkus.datasource.password
+```
+
+### Format selection
+
+```text
+--format=env    # default, current .env behavior
+--format=yaml   # application.yml, application.yaml, docker-compose.yml
+--format=props  # application.properties
+```
+
+If `--format` is omitted, `envguard` auto-detects from file extensions:
+
+- `.yml` / `.yaml` → `yaml`
+- `.properties` → `props`
+- `.env` or no recognized extension → `env`
 
 ---
 

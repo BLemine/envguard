@@ -13,6 +13,7 @@ import (
 var (
 	validateLocal    string
 	validateRequired string
+	validateFormat   string
 )
 
 var validateCmd = &cobra.Command{
@@ -26,26 +27,18 @@ var validateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		local, err := parser.Parse(validateLocal)
+		format, err := resolveFormat(validateFormat, validateLocal)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading %s: %v\n", validateLocal, err)
+			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
 
 		requiredKeys := strings.Split(validateRequired, ",")
-		failed := 0
-
-		fmt.Println()
-		for _, key := range requiredKeys {
-			key = strings.TrimSpace(key)
-			value, exists := local.Keys[key]
-			ok := exists && value != ""
-			reporter.PrintValidation(key, value, ok)
-			if !ok {
-				failed++
-			}
+		failed, err := validateFile(validateLocal, format, requiredKeys)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
-		fmt.Println()
 
 		if failed > 0 {
 			fmt.Fprintf(os.Stderr, "✗ Validation failed — %d required key(s) missing or empty\n\n", failed)
@@ -56,7 +49,29 @@ var validateCmd = &cobra.Command{
 	},
 }
 
+func validateFile(localPath string, format parser.Format, requiredKeys []string) (int, error) {
+	local, err := parser.ParseWithFormat(localPath, format)
+	if err != nil {
+		return 0, formatErrorContext("error reading "+localPath, format, err)
+	}
+
+	failed := 0
+	fmt.Println()
+	for _, key := range requiredKeys {
+		key = strings.TrimSpace(key)
+		value, exists := local.Keys[key]
+		ok := exists && value != ""
+		reporter.PrintValidation(key, value, ok)
+		if !ok {
+			failed++
+		}
+	}
+	fmt.Println()
+	return failed, nil
+}
+
 func init() {
 	validateCmd.Flags().StringVar(&validateLocal, "local", ".env", "Path to your local .env file")
 	validateCmd.Flags().StringVar(&validateRequired, "required", "", "Comma-separated list of required keys")
+	validateCmd.Flags().StringVar(&validateFormat, "format", "", "File format: env, yaml, or props (auto-detected when omitted)")
 }

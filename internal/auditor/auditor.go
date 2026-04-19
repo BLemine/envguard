@@ -5,8 +5,11 @@ import (
 	"bytes"
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/BLemine/envguard/internal/parser"
 )
 
 type EnvFileHit struct {
@@ -39,9 +42,9 @@ var patterns = []struct {
 	{"Generic Secret/Token/Password", regexp.MustCompile(`(?i)(?:secret|token|password|passwd)\s*[=:]\s*["']?[^\s"'<>{}\[\]]{8,}["']?`)},
 }
 
-func Run(repoPath string) (*Result, error) {
+func Run(repoPath string, format parser.Format) (*Result, error) {
 	result := &Result{}
-	if err := findEnvFiles(repoPath, result); err != nil {
+	if err := findConfigFiles(repoPath, format, result); err != nil {
 		return nil, err
 	}
 	if err := scanSecrets(repoPath, result); err != nil {
@@ -50,7 +53,7 @@ func Run(repoPath string) (*Result, error) {
 	return result, nil
 }
 
-func findEnvFiles(repoPath string, result *Result) error {
+func findConfigFiles(repoPath string, format parser.Format, result *Result) error {
 	var currentSHA string
 	return streamGitLines(repoPath, []string{"log", "--all", "--diff-filter=A", "--name-only", "--format=COMMIT:%H"}, func(line string) {
 		if strings.HasPrefix(line, "COMMIT:") {
@@ -60,7 +63,7 @@ func findEnvFiles(repoPath string, result *Result) error {
 		if line == "" || currentSHA == "" {
 			return
 		}
-		if matchesEnvFile(line) {
+		if matchesConfigFile(line, format) {
 			result.EnvFiles = append(result.EnvFiles, EnvFileHit{
 				CommitSHA: currentSHA,
 				File:      line,
@@ -69,23 +72,35 @@ func findEnvFiles(repoPath string, result *Result) error {
 	})
 }
 
-// matchesEnvFile returns true for .env files that likely contain real secrets
-// (.env, .env.local, .env.production) but not templates (.env.example, .env.local.example).
-func matchesEnvFile(path string) bool {
+// matchesConfigFile returns true for config files likely to contain secrets for the given format.
+func matchesConfigFile(path string, format parser.Format) bool {
 	base := path
 	if i := strings.LastIndexByte(path, '/'); i >= 0 {
 		base = path[i+1:]
 	}
 	lower := strings.ToLower(base)
-	if !strings.HasPrefix(lower, ".env") {
-		return false
-	}
-	for _, suffix := range []string{".example", ".sample", ".template"} {
-		if strings.HasSuffix(lower, suffix) {
+	switch format {
+	case parser.FormatEnv:
+		if !strings.HasPrefix(lower, ".env") {
 			return false
 		}
+		for _, suffix := range []string{".example", ".sample", ".template"} {
+			if strings.HasSuffix(lower, suffix) {
+				return false
+			}
+		}
+		return true
+	case parser.FormatYAML:
+		ext := strings.ToLower(filepath.Ext(lower))
+		if ext != ".yml" && ext != ".yaml" {
+			return false
+		}
+		return lower == "application.yml" || lower == "application.yaml" || lower == "docker-compose.yml" || lower == "docker-compose.yaml"
+	case parser.FormatProps:
+		return lower == "application.properties"
+	default:
+		return false
 	}
-	return true
 }
 
 func scanSecrets(repoPath string, result *Result) error {

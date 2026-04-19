@@ -89,7 +89,7 @@ func PrintAuditResult(result *auditor.Result) {
 	bold.Printf("\nAudit: scanning git history for secrets and .env files\n\n")
 
 	if len(result.EnvFiles) > 0 {
-		bold.Println(".env Files Committed to History")
+		bold.Println("Config Files Committed to History")
 		for _, hit := range result.EnvFiles {
 			yellow.Printf("  ⚠ %s  %s\n", sha7(hit.CommitSHA), hit.File)
 		}

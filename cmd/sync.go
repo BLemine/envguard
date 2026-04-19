@@ -14,6 +14,7 @@ import (
 var (
 	syncExample string
 	syncLocal   string
+	syncFormat  string
 )
 
 var syncCmd = &cobra.Command{
@@ -21,7 +22,13 @@ var syncCmd = &cobra.Command{
 	Short: "Add missing keys from .env.example into your .env",
 	Long:  `Reads .env.example and adds any missing keys into your .env with empty values. Existing keys are never overwritten.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		added, skipped, err := syncFile(syncExample, syncLocal)
+		format, err := resolveFormat(syncFormat, syncExample, syncLocal)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+
+		added, skipped, err := syncFile(syncExample, syncLocal, format)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
@@ -31,13 +38,13 @@ var syncCmd = &cobra.Command{
 	},
 }
 
-func syncFile(examplePath, localPath string) ([]string, []string, error) {
-	example, err := parser.Parse(examplePath)
+func syncFile(examplePath, localPath string, format parser.Format) ([]string, []string, error) {
+	example, err := parser.ParseWithFormat(examplePath, format)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error reading %s: %w", examplePath, err)
+		return nil, nil, formatErrorContext("error reading "+examplePath, format, err)
 	}
 
-	local, err := parseLocalOrEmpty(localPath)
+	local, err := parseLocalOrEmpty(localPath, format)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -62,6 +69,13 @@ func syncFile(examplePath, localPath string) ([]string, []string, error) {
 
 	if len(toAppend) == 0 {
 		return added, skipped, nil
+	}
+
+	if format == parser.FormatYAML {
+		for _, key := range added {
+			local.Keys[key] = ""
+		}
+		return added, skipped, writeSerializedFile(localPath, format, local.Keys)
 	}
 
 	if err := ensureParentDir(localPath); err != nil {
@@ -93,15 +107,30 @@ func syncFile(examplePath, localPath string) ([]string, []string, error) {
 	return added, skipped, nil
 }
 
-func parseLocalOrEmpty(path string) (*parser.EnvFile, error) {
-	local, err := parser.Parse(path)
+func parseLocalOrEmpty(path string, format parser.Format) (*parser.EnvFile, error) {
+	local, err := parser.ParseWithFormat(path, format)
 	if err == nil {
 		return local, nil
 	}
 	if os.IsNotExist(err) {
 		return &parser.EnvFile{Path: path, Keys: map[string]string{}}, nil
 	}
-	return nil, fmt.Errorf("error reading %s: %w", path, err)
+	return nil, formatErrorContext("error reading "+path, format, err)
+}
+
+func writeSerializedFile(path string, format parser.Format, keys map[string]string) error {
+	if err := ensureParentDir(path); err != nil {
+		return err
+	}
+
+	data, err := parser.SerializeWithFormat(format, keys)
+	if err != nil {
+		return formatErrorContext("error serializing "+path, format, err)
+	}
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		return formatErrorContext("error writing "+path, format, err)
+	}
+	return nil
 }
 
 func ensureParentDir(path string) error {
@@ -142,4 +171,5 @@ func fileNeedsLeadingNewline(path string) (bool, error) {
 func init() {
 	syncCmd.Flags().StringVar(&syncExample, "example", ".env.example", "Path to your .env.example file")
 	syncCmd.Flags().StringVar(&syncLocal, "local", ".env", "Path to your local .env file")
+	syncCmd.Flags().StringVar(&syncFormat, "format", "", "File format: env, yaml, or props (auto-detected when omitted)")
 }

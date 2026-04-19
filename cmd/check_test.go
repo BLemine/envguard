@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/BLemine/envguard/internal/parser"
 )
 
 func TestRunCheckFailsWhenRequiredKeyIsEmpty(t *testing.T) {
@@ -20,7 +22,7 @@ func TestRunCheckFailsWhenRequiredKeyIsEmpty(t *testing.T) {
 		t.Fatalf("write local: %v", err)
 	}
 
-	result, err := runCheck(examplePath, localPath)
+	result, err := runCheck(examplePath, localPath, parser.FormatEnv)
 	if err != nil {
 		t.Fatalf("runCheck returned error: %v", err)
 	}
