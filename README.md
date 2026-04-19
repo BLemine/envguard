@@ -196,6 +196,55 @@ Summary
 
 ---
 
+## JVM / Spring Boot support
+
+envguard understands YAML and `.properties` files out of the box. Nested YAML keys are flattened to dot-notation so the same `check`, `sync`, and `validate` workflow applies.
+
+### Spring Boot (`application.yml`)
+
+Commit a `application.yml.example` with empty values alongside your gitignored `application.yml`:
+
+```bash
+# Check your local YAML against the example
+envguard check --example=application.yml.example --local=application.yml
+
+# Add any keys that are in the example but missing locally
+envguard sync --example=application.yml.example --local=application.yml
+
+# Assert required keys are non-empty (e.g. in CI)
+envguard validate --local=application.yml \
+  --required=spring.datasource.url,spring.datasource.password
+```
+
+### Spring Boot (`application.properties`)
+
+```bash
+envguard check --example=application.properties.example --local=application.properties
+
+envguard sync --example=application.properties.example --local=application.properties
+
+envguard validate --local=application.properties \
+  --required=spring.datasource.url,spring.datasource.password,server.port
+```
+
+### Quarkus (`application.properties`)
+
+Quarkus uses the same flat `.properties` format, so the commands above apply unchanged:
+
+```bash
+envguard check --example=src/main/resources/application.properties.example \
+               --local=src/main/resources/application.properties
+```
+
+You can also force a format explicitly if the file extension is ambiguous:
+
+```bash
+envguard check --format=yaml --example=config.example --local=config
+envguard check --format=props --example=settings.example --local=settings
+```
+
+---
+
 ## Project structure
 
 ```

@@ -8,3 +8,8 @@
 dist/
 envguard
 envguard.exe
+
+application.yml
+application.properties
+!application.yml.example
+!application.properties.example

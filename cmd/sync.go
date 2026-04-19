@@ -14,6 +14,7 @@ import (
 var (
 	syncExample string
 	syncLocal   string
+	syncFormat  string
 )
 
 var syncCmd = &cobra.Command{
@@ -21,7 +22,7 @@ var syncCmd = &cobra.Command{
 	Short: "Add missing keys from .env.example into your .env",
 	Long:  `Reads .env.example and adds any missing keys into your .env with empty values. Existing keys are never overwritten.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		added, skipped, err := syncFile(syncExample, syncLocal)
+		added, skipped, err := syncFile(syncExample, syncLocal, syncFormat)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
@@ -31,13 +32,17 @@ var syncCmd = &cobra.Command{
 	},
 }
 
-func syncFile(examplePath, localPath string) ([]string, []string, error) {
-	example, err := parser.Parse(examplePath)
+func syncFile(examplePath, localPath, format string) ([]string, []string, error) {
+	if format == "" {
+		format = parser.DetectFormat(examplePath)
+	}
+
+	example, err := parser.ParseAs(examplePath, format)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error reading %s: %w", examplePath, err)
 	}
 
-	local, err := parseLocalOrEmpty(localPath)
+	local, err := parseLocalOrEmpty(localPath, format)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -49,6 +54,8 @@ func syncFile(examplePath, localPath string) ([]string, []string, error) {
 	}
 	sort.Strings(keys)
 
+	lineFor := envLineFormatter(format)
+
 	var added, skipped []string
 	toAppend := make([]string, 0, len(keys))
 	for _, key := range keys {
@@ -57,7 +64,7 @@ func syncFile(examplePath, localPath string) ([]string, []string, error) {
 			continue
 		}
 		added = append(added, key)
-		toAppend = append(toAppend, key+"=\n")
+		toAppend = append(toAppend, lineFor(key))
 	}
 
 	if len(toAppend) == 0 {
@@ -93,8 +100,15 @@ func syncFile(examplePath, localPath string) ([]string, []string, error) {
 	return added, skipped, nil
 }
 
-func parseLocalOrEmpty(path string) (*parser.EnvFile, error) {
-	local, err := parser.Parse(path)
+func envLineFormatter(format string) func(string) string {
+	if format == parser.FormatYAML {
+		return func(k string) string { return k + ":\n" }
+	}
+	return func(k string) string { return k + "=\n" }
+}
+
+func parseLocalOrEmpty(path, format string) (*parser.EnvFile, error) {
+	local, err := parser.ParseAs(path, format)
 	if err == nil {
 		return local, nil
 	}
@@ -142,4 +156,5 @@ func fileNeedsLeadingNewline(path string) (bool, error) {
 func init() {
 	syncCmd.Flags().StringVar(&syncExample, "example", ".env.example", "Path to your .env.example file")
 	syncCmd.Flags().StringVar(&syncLocal, "local", ".env", "Path to your local .env file")
+	syncCmd.Flags().StringVar(&syncFormat, "format", "", "File format: env, yaml, props (default: auto-detect from extension)")
 }

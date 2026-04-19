@@ -13,6 +13,7 @@ import (
 var (
 	checkExample string
 	checkLocal   string
+	checkFormat  string
 )
 
 var checkCmd = &cobra.Command{
@@ -20,7 +21,7 @@ var checkCmd = &cobra.Command{
 	Short: "Compare your .env against .env.example",
 	Long:  `Diffs your local .env file against .env.example and reports missing, undocumented, or empty keys.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		result, err := runCheck(checkExample, checkLocal)
+		result, err := runCheck(checkExample, checkLocal, checkFormat)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
@@ -34,13 +35,13 @@ var checkCmd = &cobra.Command{
 	},
 }
 
-func runCheck(examplePath, localPath string) (*differ.DiffResult, error) {
-	example, err := parser.Parse(examplePath)
+func runCheck(examplePath, localPath, format string) (*differ.DiffResult, error) {
+	example, err := parser.ParseAs(examplePath, format)
 	if err != nil {
 		return nil, fmt.Errorf("error reading %s: %w", examplePath, err)
 	}
 
-	local, err := parser.Parse(localPath)
+	local, err := parser.ParseAs(localPath, format)
 	if err != nil {
 		return nil, fmt.Errorf("error reading %s: %w", localPath, err)
 	}
@@ -55,4 +56,5 @@ func shouldFailCheck(result *differ.DiffResult) bool {
 func init() {
 	checkCmd.Flags().StringVar(&checkExample, "example", ".env.example", "Path to your .env.example file")
 	checkCmd.Flags().StringVar(&checkLocal, "local", ".env", "Path to your local .env file")
+	checkCmd.Flags().StringVar(&checkFormat, "format", "", "File format: env, yaml, props (default: auto-detect from extension)")
 }

@@ -17,7 +17,7 @@ func TestSyncFileCreatesMissingLocalFile(t *testing.T) {
 		t.Fatalf("write example: %v", err)
 	}
 
-	added, skipped, err := syncFile(examplePath, localPath)
+	added, skipped, err := syncFile(examplePath, localPath, "")
 	if err != nil {
 		t.Fatalf("syncFile returned error: %v", err)
 	}
@@ -54,7 +54,7 @@ func TestSyncFileSeparatesAppendedKeysWithNewline(t *testing.T) {
 		t.Fatalf("write local: %v", err)
 	}
 
-	added, skipped, err := syncFile(examplePath, localPath)
+	added, skipped, err := syncFile(examplePath, localPath, "")
 	if err != nil {
 		t.Fatalf("syncFile returned error: %v", err)
 	}

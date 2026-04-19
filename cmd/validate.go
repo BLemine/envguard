@@ -13,6 +13,7 @@ import (
 var (
 	validateLocal    string
 	validateRequired string
+	validateFormat   string
 )
 
 var validateCmd = &cobra.Command{
@@ -26,7 +27,7 @@ var validateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		local, err := parser.Parse(validateLocal)
+		local, err := parser.ParseAs(validateLocal, validateFormat)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error reading %s: %v\n", validateLocal, err)
 			os.Exit(1)
@@ -59,4 +60,5 @@ var validateCmd = &cobra.Command{
 func init() {
 	validateCmd.Flags().StringVar(&validateLocal, "local", ".env", "Path to your local .env file")
 	validateCmd.Flags().StringVar(&validateRequired, "required", "", "Comma-separated list of required keys")
+	validateCmd.Flags().StringVar(&validateFormat, "format", "", "File format: env, yaml, props (default: auto-detect from extension)")
 }

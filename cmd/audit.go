@@ -9,7 +9,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var auditRepo string
+var (
+	auditRepo   string
+	auditFormat string
+)
 
 var auditCmd = &cobra.Command{
 	Use:   "audit",
@@ -32,4 +35,5 @@ var auditCmd = &cobra.Command{
 
 func init() {
 	auditCmd.Flags().StringVar(&auditRepo, "repo", ".", "Path to the git repository to audit")
+	auditCmd.Flags().StringVar(&auditFormat, "format", "", "File format: env, yaml, props (reserved for future use)")
 }

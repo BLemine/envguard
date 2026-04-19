@@ -20,7 +20,7 @@ func TestRunCheckFailsWhenRequiredKeyIsEmpty(t *testing.T) {
 		t.Fatalf("write local: %v", err)
 	}
 
-	result, err := runCheck(examplePath, localPath)
+	result, err := runCheck(examplePath, localPath, "")
 	if err != nil {
 		t.Fatalf("runCheck returned error: %v", err)
 	}
