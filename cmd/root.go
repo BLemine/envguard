@@ -27,4 +27,5 @@ func init() {
 	rootCmd.AddCommand(auditCmd)
 	rootCmd.AddCommand(encryptCmd)
 	rootCmd.AddCommand(decryptCmd)
+	rootCmd.AddCommand(scanConfigCmd)
 }
