@@ -8,3 +8,6 @@
 dist/
 envguard
 envguard.exe
+
+.gocache/
+.gomodcache/

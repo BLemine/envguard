@@ -160,6 +160,99 @@ Use in GitHub Actions:
 
 ---
 
+### `scan-config` — scan Spring Boot / Quarkus config placeholders
+
+Scans YAML and `.properties` config files for environment variable placeholders such as `${DATABASE_URL}` and `${SERVER_PORT:8080}` without treating those files as alternative `.env` formats.
+
+Spring Boot example:
+
+```yaml
+spring:
+  datasource:
+    url: ${DATABASE_URL}
+    password: ${DATABASE_PASSWORD}
+server:
+  port: ${SERVER_PORT:8080}
+```
+
+Basic scan:
+
+```bash
+envguard scan-config --files=application.yml
+```
+
+```text
+Scanned: application.yml
+
+Required variables found in config: 2
+Optional variables found in config: 1
+
+Required variables:
+  - DATABASE_PASSWORD (spring.datasource.password)
+  - DATABASE_URL (spring.datasource.url)
+
+Optional variables with defaults:
+  - SERVER_PORT=8080 (server.port)
+```
+
+Scan multiple config files:
+
+```bash
+envguard scan-config --files=application.yml,application.properties
+```
+
+Explicit format for files without a recognized extension:
+
+```bash
+envguard scan-config --files=config/app.conf --format=yaml
+```
+
+Strict comparison against existing env files:
+
+```bash
+envguard scan-config --files=application.yml --local=.env --example=.env.example --strict
+```
+
+```text
+Scanned: application.yml
+
+Required variables found in config: 2
+Optional variables found in config: 1
+
+Required variables:
+  - DATABASE_PASSWORD (spring.datasource.password)
+  - DATABASE_URL (spring.datasource.url)
+
+Optional variables with defaults:
+  - SERVER_PORT=8080 (server.port)
+
+Missing in .env:
+  - DATABASE_PASSWORD
+
+Missing in .env.example:
+  - DATABASE_URL
+```
+
+Machine-readable JSON output:
+
+```bash
+envguard scan-config --files=application.yml --json
+```
+
+Quiet mode:
+
+```bash
+envguard scan-config --files=application.yml --quiet
+```
+
+Supported placeholder forms:
+
+- `${VAR}` for required variables
+- `${VAR:defaultValue}` for optional variables with defaults
+- embedded placeholders inside larger strings such as `jdbc:postgresql://${DB_HOST}:${DB_PORT}/mydb`
+
+---
+
 ### `audit` — scan git history for leaked env files and secrets
 
 Walks the full git history and flags committed `.env` files plus lines matching common secret patterns such as API keys, tokens, passwords, private keys, Slack tokens, GitHub tokens, and Stripe keys.
@@ -205,12 +298,14 @@ envguard/
 │   ├── check.go      # envguard check
 │   ├── sync.go       # envguard sync
 │   ├── validate.go   # envguard validate
+│   ├── scan_config.go# envguard scan-config
 │   ├── audit.go      # envguard audit
 │   ├── encrypt.go    # envguard encrypt
 │   ├── decrypt.go    # envguard decrypt
 │   └── passphrase.go # shared passphrase resolution
 ├── internal/
 │   ├── parser/       # .env file parsing
+│   ├── configscan/   # config placeholder scanning
 │   ├── differ/       # diff logic
 │   ├── reporter/     # colored terminal output
 │   ├── auditor/      # git history scanning
