@@ -52,7 +52,8 @@ func Run(repoPath string) (*Result, error) {
 
 func findEnvFiles(repoPath string, result *Result) error {
 	var currentSHA string
-	return streamGitLines(repoPath, []string{"log", "--all", "--diff-filter=A", "--name-only", "--format=COMMIT:%H"}, func(line string) {
+	seen := make(map[string]bool)
+	return streamGitLines(repoPath, []string{"log", "--all", "-m", "--diff-filter=A", "--name-only", "--format=COMMIT:%H"}, func(line string) {
 		if strings.HasPrefix(line, "COMMIT:") {
 			currentSHA = strings.TrimPrefix(line, "COMMIT:")
 			return
@@ -60,7 +61,8 @@ func findEnvFiles(repoPath string, result *Result) error {
 		if line == "" || currentSHA == "" {
 			return
 		}
-		if matchesEnvFile(line) {
+		if matchesEnvFile(line) && !seen[currentSHA+"|"+line] {
+			seen[currentSHA+"|"+line] = true
 			result.EnvFiles = append(result.EnvFiles, EnvFileHit{
 				CommitSHA: currentSHA,
 				File:      line,
@@ -92,7 +94,7 @@ func scanSecrets(repoPath string, result *Result) error {
 	var currentSHA, currentFile string
 	seen := make(map[string]bool)
 
-	return streamGitLines(repoPath, []string{"log", "--all", "--no-merges", "-p", "--no-color", "--format=COMMIT:%H"}, func(line string) {
+	return streamGitLines(repoPath, []string{"log", "--all", "-m", "-p", "--no-color", "--format=COMMIT:%H"}, func(line string) {
 		if strings.HasPrefix(line, "COMMIT:") {
 			currentSHA = strings.TrimPrefix(line, "COMMIT:")
 			currentFile = ""

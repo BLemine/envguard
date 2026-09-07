@@ -1,7 +1,9 @@
 package configscan
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 
 	"gopkg.in/yaml.v3"
@@ -14,18 +16,22 @@ func ScanYAML(filePath string) (*ScanResult, error) {
 		return nil, fmt.Errorf("reading %s: %w", filePath, err)
 	}
 
-	var doc yaml.Node
-	if err := yaml.Unmarshal(data, &doc); err != nil {
-		return nil, fmt.Errorf("parsing %s: %w", filePath, err)
-	}
-
 	result := &ScanResult{}
-	if doc.Kind == 0 || len(doc.Content) == 0 {
-		return result, nil
+	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	for {
+		var doc yaml.Node
+		err := decoder.Decode(&doc)
+		if err == io.EOF {
+			return result, nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("parsing %s: %w", filePath, err)
+		}
+		if len(doc.Content) > 0 {
+			walkYAML(doc.Content[0], "", filePath, result)
+		}
 	}
 
-	walkYAML(doc.Content[0], "", filePath, result)
-	return result, nil
 }
 
 func walkYAML(node *yaml.Node, path, filePath string, result *ScanResult) {

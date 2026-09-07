@@ -70,12 +70,7 @@ Use --strict with --local / --example to verify all required variables are defin
 				fmt.Fprintln(os.Stderr, "error reading", scanLocal+":", err)
 				os.Exit(1)
 			}
-			localKeys := parser.KeySet(localEnv)
-			for _, p := range merged.Required {
-				if _, ok := localKeys[p.Name]; !ok {
-					missingLocal = append(missingLocal, p.Name)
-				}
-			}
+			missingLocal = configscan.Missing(merged, parser.KeySet(localEnv))
 		}
 
 		if scanExample != "" {
@@ -84,12 +79,7 @@ Use --strict with --local / --example to verify all required variables are defin
 				fmt.Fprintln(os.Stderr, "error reading", scanExample+":", err)
 				os.Exit(1)
 			}
-			exampleKeys := parser.KeySet(exampleEnv)
-			for _, p := range merged.Required {
-				if _, ok := exampleKeys[p.Name]; !ok {
-					missingExample = append(missingExample, p.Name)
-				}
-			}
+			missingExample = configscan.Missing(merged, parser.KeySet(exampleEnv))
 		}
 
 		switch {
@@ -149,7 +139,7 @@ func printScanHuman(files []string, result *configscan.ScanResult, missingLocal,
 	}
 
 	if len(result.Optional) > 0 {
-		fmt.Println("Optional variables with defaults:")
+		fmt.Println("Variables with defaults (nested fallbacks are conditional):")
 		for _, p := range result.Optional {
 			dv := ""
 			if p.DefaultValue != nil {
@@ -179,10 +169,17 @@ func printScanHuman(files []string, result *configscan.ScanResult, missingLocal,
 
 func printScanQuiet(result *configscan.ScanResult) {
 	for _, p := range result.Required {
-		fmt.Println(p.Name)
+		printPlaceholderNames(p)
 	}
 	for _, p := range result.Optional {
-		fmt.Println(p.Name)
+		printPlaceholderNames(p)
+	}
+}
+
+func printPlaceholderNames(p configscan.Placeholder) {
+	fmt.Println(p.Name)
+	for _, child := range p.Fallback {
+		printPlaceholderNames(child)
 	}
 }
 
@@ -194,10 +191,11 @@ type scanJSONOutput struct {
 }
 
 type jsonPlaceholder struct {
-	Name         string  `json:"name"`
-	DefaultValue *string `json:"default,omitempty"`
-	SourceFile   string  `json:"source_file"`
-	SourcePath   string  `json:"source_path"`
+	Name         string            `json:"name"`
+	Fallback     []jsonPlaceholder `json:"fallback,omitempty"`
+	DefaultValue *string           `json:"default,omitempty"`
+	SourceFile   string            `json:"source_file"`
+	SourcePath   string            `json:"source_path"`
 }
 
 func printScanJSON(result *configscan.ScanResult, missingLocal, missingExample []string) {
@@ -216,6 +214,7 @@ func printScanJSON(result *configscan.ScanResult, missingLocal, missingExample [
 		out.Optional = append(out.Optional, jsonPlaceholder{
 			Name:         p.Name,
 			DefaultValue: p.DefaultValue,
+			Fallback:     jsonFallback(p.Fallback),
 			SourceFile:   p.SourceFile,
 			SourcePath:   p.SourcePath,
 		})
@@ -229,6 +228,14 @@ func printScanJSON(result *configscan.ScanResult, missingLocal, missingExample [
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	_ = enc.Encode(out)
+}
+
+func jsonFallback(ps []configscan.Placeholder) []jsonPlaceholder {
+	var result []jsonPlaceholder
+	for _, p := range ps {
+		result = append(result, jsonPlaceholder{Name: p.Name, DefaultValue: p.DefaultValue, SourceFile: p.SourceFile, SourcePath: p.SourcePath, Fallback: jsonFallback(p.Fallback)})
+	}
+	return result
 }
 
 func init() {

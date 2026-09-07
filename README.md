@@ -116,7 +116,7 @@ ENVGUARD_PASSPHRASE=mysecret envguard encrypt
 
 ### `decrypt` — decrypt a `.env.enc` file
 
-Decrypts a `.env.enc` back into `.env`. Fails loudly if the passphrase is wrong. Will **not** overwrite an existing `.env` unless `--force` is passed.
+Decrypts a `.env.enc` back into `.env`. Fails loudly if the passphrase is wrong. Will **not** overwrite an existing `.env` unless `--force` is passed. On Unix, decrypted output is restricted to owner read/write (`0600`), including when overwriting an existing file.
 
 ```bash
 envguard decrypt --passphrase=mysecret
@@ -162,7 +162,7 @@ Use in GitHub Actions:
 
 ### `audit` — scan git history for leaked env files and secrets
 
-Walks the full git history and flags committed `.env` files plus lines matching common secret patterns such as API keys, tokens, passwords, private keys, Slack tokens, GitHub tokens, and Stripe keys.
+Walks history reachable from all local refs, including merge commits, and flags committed `.env` files plus lines matching common secret patterns such as API keys, tokens, passwords, private keys, Slack tokens, GitHub tokens, and Stripe keys.
 
 ```bash
 envguard audit
@@ -200,6 +200,24 @@ Summary
 
 Extracts `${VAR}` and `${VAR:default}` placeholders from YAML and `.properties` config files.
 Required variables (no default) and optional variables (with default) are reported separately.
+All YAML documents (including sections separated by `---`) are scanned. Properties
+accept `=`, `:`, or whitespace separators. Nested fallback expressions are supported, including deeper chains:
+
+```properties
+database.url=${DATABASE_URL:${FALLBACK_DATABASE_URL}}
+server.port=${SERVER_PORT:${DEFAULT_PORT:8080}}
+```
+
+For the first expression, `--strict` accepts either key; it fails if both are
+absent. The second expression always has a literal fallback. When a fallback
+contains several references, all must resolve unless the primary key is present.
+Each supplied env file is checked independently. As with simple placeholders,
+empty values count as defined; use `check` or `validate` to reject empty values.
+
+Human output preserves the full default expression. JSON adds a recursive
+`fallback` array to placeholders with nested references, and `--quiet` includes
+nested variable names. Missing conditional requirements are reported as their
+full `${...}` expression in `missing_local` / `missing_example`.
 
 ```bash
 envguard scan-config --files=application.yml

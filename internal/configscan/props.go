@@ -22,12 +22,31 @@ func ScanProps(filePath string) (*ScanResult, error) {
 		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "!") {
 			continue
 		}
-		idx := strings.IndexByte(line, '=')
+		idx := -1
+		escaped := false
+		for i := 0; i < len(line); i++ {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if line[i] == '\\' {
+				escaped = true
+				continue
+			}
+			if strings.ContainsRune("=: \t\f", rune(line[i])) {
+				idx = i
+				break
+			}
+		}
 		if idx < 0 {
 			continue
 		}
 		key := strings.TrimSpace(line[:idx])
-		value := strings.TrimSpace(line[idx+1:])
+		value := strings.TrimLeft(line[idx:], " \t\f")
+		if len(value) > 0 && (value[0] == '=' || value[0] == ':') {
+			value = value[1:]
+		}
+		value = strings.TrimSpace(value)
 
 		for _, p := range ExtractPlaceholders(value, filePath, key) {
 			if p.Required {

@@ -49,7 +49,7 @@ var decryptCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		if err := os.WriteFile(decryptOut, plaintext, 0600); err != nil {
+		if err := writeDecryptedFile(decryptOut, plaintext, decryptForce); err != nil {
 			fmt.Fprintf(os.Stderr, "✗ Error writing %s: %v\n", decryptOut, err)
 			os.Exit(1)
 		}
@@ -63,4 +63,27 @@ func init() {
 	decryptCmd.Flags().StringVar(&decryptOut, "out", ".env", "Path to write the decrypted output")
 	decryptCmd.Flags().StringVar(&decryptPassphrase, "passphrase", "", "Passphrase for decryption (or set ENVGUARD_PASSPHRASE)")
 	decryptCmd.Flags().BoolVar(&decryptForce, "force", false, "Overwrite the output file if it already exists")
+}
+
+// Restrict permissions before writing secrets, including when replacing a file.
+func writeDecryptedFile(path string, plaintext []byte, force bool) error {
+	flags := os.O_WRONLY | os.O_CREATE | os.O_EXCL
+	if force {
+		flags = os.O_WRONLY | os.O_CREATE
+	}
+	f, err := os.OpenFile(path, flags, 0600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if err := f.Chmod(0600); err != nil {
+		return err
+	}
+	if err := f.Truncate(0); err != nil {
+		return err
+	}
+	if _, err := f.Write(plaintext); err != nil {
+		return err
+	}
+	return f.Close()
 }
